@@ -1,0 +1,61 @@
+
+with 
+base as (
+ Select 
+ Division as Division
+,coalesce(x.[Salesgroup],'') as Salesgroup
+,concat(Month(tdate),'-',Year(tdate)) [Month Name]
+,case  x.class when 's' then 'Subagent Commission' else 'Income' end  as [Type]
+,ledger_bus_split
+,sum(coalesce([Income],0)) as [com]
+,Cast(SUm(Salecount)as money) [Sales]
+
+from (select * from bwg.dbo.exvw_ledger x
+WHERE  cast(tdate as date) between cast (DATEADD(m,-1,DATEADD(mm, DATEDIFF(m,0,GETDATE()), 0)) as Date) and cast(EOMonth(getdate()) as date)
+and (cast(x.SALEDATE as date) = cast(x.TDATE as date) or 0 = '0')) x  
+left join bwg.dbo.display_salesgroup sgb on sgb.display_salesgroup_id  =  x.display_salesgroup_id 
+left join bwg.dbo.display_division dd on dd.display_division_id =  sgb.display_division_id 
+
+ WHERE Division in ( 'Care','Commercial','MGA','Personal Lines','Private Clients','SME','Wholesale') 
+      and Division in ( 'Care','Commercial','MGA','Private Clients','SME','Wholesale') 
+group by Division
+,coalesce(x.[Salesgroup],'')
+,case  x.class when 's' then 'Subagent Commission' else 'Income' end 
+,concat(Month(tdate),'-',Year(tdate))
+,ledger_bus_split)
+
+,base2 as 
+
+ (Select 
+ Division as Division
+,coalesce(x.[Salesgroup],'') as Salesgroup,concat(Month(tdate),'-',Year(tdate)) [Month Name]
+,ledger_bus_split
+,sum(coalesce([Income],0)) as [com]
+,Cast(SUm(Salecount)as money) [Sales]
+
+from (select * from bwg.dbo.exvw_ledger x
+WHERE  cast(tdate as date) between cast (DATEADD(m,-1,DATEADD(mm, DATEDIFF(m,0,GETDATE()), 0)) as Date) and cast(EOMONTH(getdate()) as date)
+and (cast(x.SALEDATE as date) = cast(x.TDATE as date) or 0 = '0')) x  
+left join bwg.dbo.display_salesgroup sgb on sgb.display_salesgroup_id  =  x.display_salesgroup_id 
+left join bwg.dbo.display_division dd on dd.display_division_id =  sgb.display_division_id 
+
+ WHERE Division in ( 'Care','Commercial','MGA','Personal Lines','Private Clients','SME','Wholesale') 
+      and Division in ( 'Care','Commercial','MGA','Private Clients','SME','Wholesale') 
+group by Division
+,coalesce(x.[Salesgroup],'')
+,concat(Month(tdate),'-',Year(tdate))
+,ledger_bus_split)
+
+
+Select 
+t.Division
+,T.Salesgroup
+,t.Ledger_Bus_Split
+, t.[Type]
+, t.[Month Name]
+,(t.Sales)Sales
+,(t.com) Income
+,  Case when [Type]='Subagent Commission' then 0 else t1.com/nullif(t1.[Sales],0) end  [Avg Income]
+from base t
+Left join base2 t1 on t1.Division=t.Division and t1.Salesgroup=t.Salesgroup and t1.Ledger_Bus_Split=t.Ledger_Bus_Split and t.[Month Name]=t1.[Month Name]
+
